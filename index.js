@@ -38,7 +38,17 @@ async function run() {
     //get all tutor from data base via app.get and get single email via app.get
     app.get('/addTutors', async (req, res) => {
       const email = req.query.email;
-      const query = email ? { email } : {};
+      const search = req.query.search; // Get search data from query string
+
+      let query = {};
+
+      if (email) {
+        query.email = email;
+      }
+
+      if (search) {
+        query.language = { $regex: search, $options: "i" };
+      }
       const result = await addTutorsCollection.find(query).toArray()
       res.send(result)
     })
@@ -113,17 +123,17 @@ async function run() {
       const updateDoc = {
         $inc: { review: 1 }
       };
-      const single = await bookedTutorsCollection.findOne({_id: new ObjectId(tutorId)})
-// console.log(single)
+      const single = await bookedTutorsCollection.findOne({ _id: new ObjectId(tutorId) })
+      // console.log(single)
       // Update the tutor 
       const updateAddTutor = await addTutorsCollection.updateOne(
         { _id: new ObjectId(single.tutorId) },
         updateDoc,
         // options
-        
+
       );
 
-      console.log("add collection",updateAddTutor)
+      console.log("add collection", updateAddTutor)
       // Find the updated tutor 
       // const result = await addTutorsCollection.findOne({ _id: new ObjectId(tutorId) });
       // console.log("add tutor", result);
