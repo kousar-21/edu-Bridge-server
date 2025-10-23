@@ -32,6 +32,7 @@ async function run() {
     const addTutorsCollection = client.db("eduBridge").collection("addTutors")
     const bookedTutorsCollection = client.db("eduBridge").collection("bookedTutors")
     const addEmailCollection = client.db("eduBridge").collection("addEmail")
+    const favoritesCollection = client.db("eduBridge").collection("favorites");
 
 
 
@@ -188,6 +189,68 @@ async function run() {
       }
       return res.send("This Email Already exists")
     })
+
+
+    // add favourite turor
+    app.post('/favorites', async (req, res) => {
+      const { userEmail, tutorId } = req.body;
+
+      if (!userEmail || !tutorId) {
+        return res.status(400).send({ message: "Missing userEmail or tutorId" });
+      }
+
+      // Check if already saved
+      const exists = await favoritesCollection.findOne({ userEmail, tutorId });
+      if (exists) {
+        return res.send({ message: "Already saved" });
+      }
+
+      const doc = {
+        userEmail,
+        tutorId,
+        savedAt: new Date(),
+      };
+
+      const result = await favoritesCollection.insertOne(doc);
+      res.send(result);
+    });
+
+    // get favourite tutor
+
+    app.get("/favorites", async (req, res) => {
+      const email = req.query.email;
+      if (!email) return res.status(400).send({ message: "Email is required" });
+
+      const favorites = await favoritesCollection
+        .aggregate([
+          { $match: { userEmail: email } },
+          {
+            $lookup: {
+              from: "addTutors",
+              let: { tutorId: { $toObjectId: "$tutorId" } }, // convert to ObjectId
+              pipeline: [
+                { $match: { $expr: { $eq: ["$_id", "$$tutorId"] } } },
+              ],
+              as: "tutorDetails",
+            },
+          },
+          { $unwind: "$tutorDetails" },
+        ])
+        .toArray();
+
+      res.send(favorites);
+    });
+
+
+    // delete or remove favourite tutor
+    app.delete('/favorites/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await favoritesCollection.deleteOne(query);
+      res.send(result);
+    });
+
+
 
 
     // Send a ping to confirm a successful connection
